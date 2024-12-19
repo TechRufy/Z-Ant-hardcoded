@@ -12,10 +12,10 @@ pub const Optimizers = enum {
 };
 
 // Define the Optimizer struct with the optimizer function, learning rate, and allocator
-pub fn Optimizer(comptime T: type, comptime Xtype: type, comptime YType: type, func: fn (comptime type, comptime type, comptime type, f64, *const std.mem.Allocator) type, lr: f64, allocator: *const std.mem.Allocator) type {
-    const optim = func(T, Xtype, YType, lr, allocator){};
+pub fn Optimizer(comptime T: type, func: fn (comptime type, f64, *const std.mem.Allocator) type, lr: f64, allocator: *const std.mem.Allocator) type {
+    const optim = func(T, lr, allocator){};
     return struct {
-        optimizer: func(T, Xtype, YType, lr, allocator) = optim, // Instantiation of the optimizer (e.g., SGD, Adam)
+        optimizer: func(T, lr, allocator) = optim, // Instantiation of the optimizer (e.g., SGD, Adam)
 
         pub fn step(self: *@This(), model: *Model.Model(T, allocator)) !void {
             // Directly call the optimizer's step function
@@ -26,11 +26,7 @@ pub fn Optimizer(comptime T: type, comptime Xtype: type, comptime YType: type, f
 
 // Define the SGD optimizer
 // NEED TO BE MODIFIED IF NEW LAYERS ARE ADDED
-pub fn optimizer_SGD(T: type, XType: type, YType: type, lr: f64, allocator: *const std.mem.Allocator) type {
-    //Are XType and YType really necessary?
-    _ = XType;
-    _ = YType;
-
+pub fn optimizer_SGD(T: type, lr: f64, allocator: *const std.mem.Allocator) type {
     return struct {
         learning_rate: f64 = lr,
         allocator: *const std.mem.Allocator = allocator,
@@ -39,12 +35,14 @@ pub fn optimizer_SGD(T: type, XType: type, YType: type, lr: f64, allocator: *con
         pub fn step(self: *@This(), model: *Model.Model(T, allocator)) !void {
             var counter: u32 = 0;
             for (model.layers.items) |layer_| {
-                if (layer_.layer_type == layer.LayerType.DenseLayer) {
+                if (layer_.layer_type == layer.LayerType.DenseLayer) { // need to put the type of layer as input, now only work for dense layer
                     const myDense: *DenseLayer.DenseLayer(T, allocator) = @ptrCast(@alignCast(layer_.layer_ptr));
                     const weight_gradients = &myDense.w_gradients;
                     const bias_gradients = &myDense.b_gradients;
                     const weight = &myDense.weights;
                     const bias = &myDense.bias;
+
+                    //need to talk with the guys about this class, probably need a big rework of the layer structure
 
                     //std.debug.print("\n ------ step {}", .{counter});
 

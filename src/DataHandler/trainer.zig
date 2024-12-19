@@ -71,6 +71,7 @@ pub fn TrainDataLoader(
     comptime lossType: LossType,
     comptime lr: f64,
     training_size: f32,
+    optimizerType: fn (comptime type, f64, *const std.mem.Allocator) type,
 ) !void {
     var LossMeanRecord: []f32 = try allocator.alloc(f32, epochs);
     defer allocator.free(LossMeanRecord);
@@ -100,14 +101,14 @@ pub fn TrainDataLoader(
 
     std.debug.print("Number of training steps: {}\n", .{steps});
 
+    var optimizer = Optim.Optimizer(T, optimizerType, lr, allocator){};
+
     for (0..epochs) |i| {
         var totalCorrect: u16 = 0;
         var totalSamples: u16 = 0;
 
         var totalCorrectVal: u16 = 0;
         var totalSamplesVal: u16 = 0;
-
-        var optimizer = Optim.Optimizer(T, XType, YType, Optim.optimizer_SGD, lr, allocator){};
 
         for (0..steps) |step| {
             _ = load.xTrainNextBatch(batchSize);

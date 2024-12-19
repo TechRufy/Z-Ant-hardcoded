@@ -25,7 +25,7 @@ pub const LayerType = enum {
 /// UTILS
 /// Initialize a matrix of random values with a normal distribution
 pub fn randn(comptime T: type, n_inputs: usize, n_neurons: usize) ![][]T {
-    var rng = std.Random.Xoshiro256.init();
+    var rng = std.Random.Xoshiro256.init(63);
 
     const matrix = try std.heap.page_allocator.alloc([]T, n_inputs);
     for (matrix) |*row| {

@@ -8,6 +8,7 @@ const loader = @import("dataloader");
 const ActivationType = @import("activation_function").ActivationType;
 const LossType = @import("loss").LossType;
 const Trainer = @import("trainer");
+const optim = @import("optim");
 
 pub fn main() !void {
     const allocator = std.heap.raw_c_allocator;
@@ -117,8 +118,7 @@ pub fn main() !void {
 
     try load.loadMNISTDataParallel(&allocator, image_file_name, label_file_name);
 
-    try Trainer.TrainDataLoader(
-        f64, //The data type for the tensor elements in the model
+    try Trainer.TrainDataLoader(f64, //The data type for the tensor elements in the model
         u8, //The data type for the input tensor (X)
         u8, //The data type for the output tensor (Y)
         &allocator, //Memory allocator for dynamic allocations during training
@@ -130,7 +130,7 @@ pub fn main() !void {
         LossType.CCE, //The type of loss function used during training
         0.0075, //The learning rate for model optimization
         0.8, //percentage of the dataset used for training, the remaining part is used for validation
-    );
+        optim.optimizer_SGD);
 
     model.deinit();
 }
