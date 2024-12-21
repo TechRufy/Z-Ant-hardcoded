@@ -35,19 +35,22 @@ pub fn optimizer_SGD(T: type, lr: f64, allocator: *const std.mem.Allocator) type
         pub fn step(self: *@This(), model: *Model.Model(T, allocator)) !void {
             var counter: u32 = 0;
             for (model.layers.items) |layer_| {
-                if (layer_.layer_type == layer.LayerType.DenseLayer) { // need to put the type of layer as input, now only work for dense layer
-                    const myDense: *DenseLayer.DenseLayer(T, allocator) = @ptrCast(@alignCast(layer_.layer_ptr));
-                    const weight_gradients = &myDense.w_gradients;
-                    const bias_gradients = &myDense.b_gradients;
-                    const weight = &myDense.weights;
-                    const bias = &myDense.bias;
+                switch (layer_.layer_type) {
+                    .DenseLayer => { // need to put the type of layer as input, now only work for dense layer
+                        const myDense: *DenseLayer.DenseLayer(T, allocator) = @ptrCast(@alignCast(layer_.layer_ptr));
+                        const weight_gradients = &myDense.w_gradients;
+                        const bias_gradients = &myDense.b_gradients;
+                        const weight = &myDense.weights;
+                        const bias = &myDense.bias;
 
-                    //need to talk with the guys about this class, probably need a big rework of the layer structure
+                        //need to talk with the guys about this class, probably need a big rework of the layer structure
 
-                    //std.debug.print("\n ------ step {}", .{counter});
+                        //std.debug.print("\n ------ step {}", .{counter});
 
-                    try self.update_tensor(weight, weight_gradients);
-                    try self.update_tensor(bias, bias_gradients);
+                        try self.update_tensor(weight, weight_gradients);
+                        try self.update_tensor(bias, bias_gradients);
+                    },
+                    else => {},
                 }
                 counter += 1;
             }
@@ -64,16 +67,46 @@ pub fn optimizer_SGD(T: type, lr: f64, allocator: *const std.mem.Allocator) type
     };
 }
 
-pub fn optimizer_ADAMTEST(T: type, lr: f64, allocator: *const std.mem.Allocator) type {
+pub fn optimizer_ADAM(T: type, lr: f64, allocator: *const std.mem.Allocator) type {
     return struct {
         learning_rate: f64 = lr,
         allocator: *const std.mem.Allocator = allocator,
+        alpha: f64,
+        beta1: f64,
+        beta2: f64,
+        epsilon: f64,
+        m: f64,
+        v: f64,
+
+        pub fn init(self: *@This(), alpha: f64, beta1: f64, beta2: f64, epsilon: f64) !void {
+            self.alpha = alpha;
+            self.beta1 = beta1;
+            self.beta2 = beta2;
+            self.epsilon = epsilon;
+        }
 
         // Step function to update weights and biases using gradients
         pub fn step(self: *@This(), model: *Model.Model(T, allocator)) !void {
-            for (model.layers) |*dense_layer| {
-                const weight_gradients = &dense_layer.w_gradients;
-                try self.update_tensor(&dense_layer.weights, weight_gradients);
+            var counter: u32 = 0;
+            for (model.layers.items) |layer_| {
+                switch (layer_.layer_type) {
+                    .DenseLayer => { // need to put the type of layer as input, now only work for dense layer
+                        const myDense: *DenseLayer.DenseLayer(T, allocator) = @ptrCast(@alignCast(layer_.layer_ptr));
+                        const weight_gradients = &myDense.w_gradients;
+                        const bias_gradients = &myDense.b_gradients;
+                        const weight = &myDense.weights;
+                        const bias = &myDense.bias;
+
+                        //need to talk with the guys about this class, probably need a big rework of the layer structure
+
+                        //std.debug.print("\n ------ step {}", .{counter});
+
+                        try self.update_tensor(weight, weight_gradients);
+                        try self.update_tensor(bias, bias_gradients);
+                    },
+                    else => {},
+                }
+                counter += 1;
             }
         }
 
@@ -82,6 +115,8 @@ pub fn optimizer_ADAMTEST(T: type, lr: f64, allocator: *const std.mem.Allocator)
             if (t.size != gradients.size) return TensorMathError.InputTensorDifferentSize;
 
             for (t.data, 0..) |*value, i| {
+                self.m = self.m * self.beta1 + (1 - self.beta1) * gradients.data[i];
+                //i need the second gradient to continue
                 value.* -= gradients.data[i] * self.learning_rate;
             }
         }
